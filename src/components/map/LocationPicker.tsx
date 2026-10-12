@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import L from "leaflet";
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMapEvents } from "react-leaflet";
-import type { Junction } from "../../data/types";
+import type { Junction } from "@shared/types";
 import { OSM_ATTRIBUTION, OSM_TILES } from "../../lib/mapConfig";
 
 const pinIcon = L.divIcon({

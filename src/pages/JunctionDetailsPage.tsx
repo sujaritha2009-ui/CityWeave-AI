@@ -6,8 +6,9 @@ import { CityMap } from "../components/map/CityMap";
 import { Badge, Card, EmptyState, MetricCard, PageHeader } from "../components/common/ui";
 import { useStore } from "../data/useStore";
 import { INSTITUTION_TYPES } from "../lib/institutionMeta";
-import { formatTime, toMinutes } from "../lib/time";
-import { CONGESTION_STYLES, institutionsNear, junctionStats } from "../lib/traffic";
+import { formatTime, toMinutes } from "@shared/time";
+import { institutionsNear, junctionStats } from "@shared/traffic";
+import { CONGESTION_STYLES } from "../lib/congestion";
 
 export function JunctionDetailsPage() {
   const { id } = useParams();

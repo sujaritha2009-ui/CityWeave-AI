@@ -2,14 +2,14 @@ import { useCallback, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { LocationPicker } from "../components/map/LocationPicker";
-import { Button, Card, EmptyState, PageHeader } from "../components/common/ui";
-import { PILOT_CENTER } from "../data/seed";
-import type { InstitutionInput } from "../data/storeContext";
-import type { Institution, InstitutionType, Junction } from "../data/types";
+import { Button, Card, EmptyState, PageHeader, Spinner } from "../components/common/ui";
+import { ApiError } from "../data/api";
+import { PILOT_CENTER } from "@shared/seed";
+import type { Institution, InstitutionInput, InstitutionType, Junction } from "@shared/types";
 import { useStore } from "../data/useStore";
 import { inputClass } from "../lib/cx";
 import { INSTITUTION_TYPE_OPTIONS } from "../lib/institutionMeta";
-import { toMinutes } from "../lib/time";
+import { toMinutes } from "@shared/time";
 
 type Errors = Partial<Record<keyof InstitutionInput, string>>;
 
@@ -95,6 +95,8 @@ function InstitutionForm({ existing, junctions }: { existing?: Institution; junc
     return rest as InstitutionInput;
   });
   const [errors, setErrors] = useState<Errors>({});
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const set = <K extends keyof InstitutionInput>(key: K, value: InstitutionInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -104,15 +106,23 @@ function InstitutionForm({ existing, junctions }: { existing?: Institution; junc
     [junctions],
   );
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const next = validate(form);
     setErrors(next);
+    setSubmitError(null);
     if (Object.keys(next).length > 0) return;
     const clean = { ...form, name: form.name.trim(), notes: form.notes.trim() };
-    if (existing) updateInstitution(existing.id, clean);
-    else addInstitution(clean);
-    navigate("/app/institutions");
+    setSaving(true);
+    try {
+      if (existing) await updateInstitution(existing.id, clean);
+      else await addInstitution(clean);
+      navigate("/app/institutions");
+    } catch (err) {
+      if (err instanceof ApiError && err.fields) setErrors(err.fields as Errors);
+      setSubmitError(err instanceof Error ? err.message : "Could not save the institution.");
+      setSaving(false);
+    }
   };
 
   return (
@@ -209,11 +219,17 @@ function InstitutionForm({ existing, junctions }: { existing?: Institution; junc
           </Card>
         </div>
 
+        {submitError && (
+          <p className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{submitError}</p>
+        )}
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => navigate("/app/institutions")}>
+          <Button variant="secondary" onClick={() => navigate("/app/institutions")} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit">Save Institution</Button>
+          <Button type="submit" disabled={saving}>
+            {saving && <Spinner />}
+            {saving ? "Saving…" : "Save Institution"}
+          </Button>
         </div>
       </form>
     </>

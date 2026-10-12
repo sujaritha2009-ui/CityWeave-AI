@@ -4,16 +4,9 @@ import { Building2, Download, MapPin, Timer, TrendingDown } from "lucide-react";
 import { Button, Card, EstimateNotice, MetricCard, PageHeader } from "../components/common/ui";
 import { useStore } from "../data/useStore";
 import { cx, inputClass } from "../lib/cx";
-import { MODEL_ASSUMPTIONS, proposedShifts } from "../lib/recommendationEngine";
-import { formatTime, toMinutes } from "../lib/time";
-import { peakReductionPct, volumeSeries } from "../lib/traffic";
-
-const RANGES = {
-  morning: { label: "Morning (6 AM – 12 PM)", from: 6 * 60, to: 12 * 60 },
-  afternoon: { label: "Afternoon & evening (12 – 8 PM)", from: 12 * 60, to: 20 * 60 },
-  day: { label: "Full day (6 AM – 8 PM)", from: 6 * 60, to: 20 * 60 },
-};
-type RangeKey = keyof typeof RANGES;
+import { MODEL_ASSUMPTIONS, proposedShifts } from "@shared/recommendationEngine";
+import { formatTime, toMinutes } from "@shared/time";
+import { peakReductionPct, REPORT_RANGES as RANGES, type ReportRange as RangeKey, volumeSeries } from "@shared/traffic";
 
 export function ReportsPage() {
   const { institutions, junctions, observations, recommendations } = useStore();

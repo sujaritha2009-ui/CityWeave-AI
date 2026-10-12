@@ -1,6 +1,6 @@
-import type { CongestionLevel, Institution, Junction, TrafficObservation } from "../data/types";
-import { buildProfile, VEHICLES_PER_ARRIVAL, type ShiftMap } from "./recommendationEngine";
-import { BUCKET_MINUTES, dayBuckets, fromMinutes, toMinutes } from "./time";
+import { buildProfile, VEHICLES_PER_ARRIVAL, type ShiftMap } from "./recommendationEngine.js";
+import { BUCKET_MINUTES, dayBuckets, fromMinutes, toMinutes } from "./time.js";
+import type { CongestionLevel, Institution, Junction, TrafficObservation } from "./types.js";
 
 const HIGH_THRESHOLD = 450;
 const MODERATE_THRESHOLD = 250;
@@ -81,8 +81,10 @@ export function institutionsNear(junction: Junction, institutions: Institution[]
   return institutions.filter((i) => i.junctionId === junction.id);
 }
 
-export const CONGESTION_STYLES: Record<CongestionLevel, { label: string; color: string; badge: string }> = {
-  low: { label: "Low congestion", color: "#16b981", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  moderate: { label: "Moderate congestion", color: "#f59e0b", badge: "bg-amber-50 text-amber-700 border-amber-200" },
-  high: { label: "High congestion", color: "#ef4444", badge: "bg-red-50 text-red-700 border-red-200" },
-};
+export const REPORT_RANGES = {
+  morning: { label: "Morning (6 AM – 12 PM)", from: 6 * 60, to: 12 * 60 },
+  afternoon: { label: "Afternoon & evening (12 – 8 PM)", from: 12 * 60, to: 20 * 60 },
+  day: { label: "Full day (6 AM – 8 PM)", from: 6 * 60, to: 20 * 60 },
+} as const;
+
+export type ReportRange = keyof typeof REPORT_RANGES;

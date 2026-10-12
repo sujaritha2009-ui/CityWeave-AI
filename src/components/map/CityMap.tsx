@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
-import type { CongestionLevel, Institution, Junction, TrafficObservation } from "../../data/types";
-import { PILOT_CENTER } from "../../data/seed";
+import { PILOT_CENTER } from "@shared/seed";
+import { formatTime } from "@shared/time";
+import { junctionStats } from "@shared/traffic";
+import type { CongestionLevel, Institution, Junction, TrafficObservation } from "@shared/types";
+import { CONGESTION_STYLES } from "../../lib/congestion";
 import { INSTITUTION_TYPES } from "../../lib/institutionMeta";
-import { formatTime } from "../../lib/time";
 import { OSM_ATTRIBUTION, OSM_TILES } from "../../lib/mapConfig";
-import { CONGESTION_STYLES, junctionStats } from "../../lib/traffic";
 
 function FlyTo({ target, zoom }: { target?: [number, number]; zoom: number }) {
   const map = useMap();

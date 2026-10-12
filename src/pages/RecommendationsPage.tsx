@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check, Lightbulb, Sparkles, X } from "lucide-react";
 import { Badge, Button, Card, EmptyState, EstimateNotice, PageHeader, Spinner, StatusBadge } from "../components/common/ui";
-import type { RecommendationStatus } from "../data/types";
+import type { RecommendationStatus } from "@shared/types";
 import { useStore } from "../data/useStore";
 import { cx } from "../lib/cx";
 import { INSTITUTION_TYPES } from "../lib/institutionMeta";
-import { approvedShifts, findKeyInsight, generateRecommendations } from "../lib/recommendationEngine";
-import { formatShift, formatTime } from "../lib/time";
+import { approvedShifts, findKeyInsight } from "@shared/recommendationEngine";
+import { formatShift, formatTime } from "@shared/time";
 
 type Filter = "all" | RecommendationStatus;
 
@@ -19,10 +19,11 @@ const FILTERS: { value: Filter; label: string }[] = [
 ];
 
 export function RecommendationsPage() {
-  const { institutions, junctions, recommendations, replaceDraftRecommendations, reviewRecommendation } = useStore();
+  const { institutions, junctions, recommendations, generateRecommendations, reviewRecommendation } = useStore();
   const [filter, setFilter] = useState<Filter>("draft");
   const [generating, setGenerating] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   const insight = useMemo(
     () => findKeyInsight(institutions, junctions, approvedShifts(recommendations)),
@@ -33,21 +34,34 @@ export function RecommendationsPage() {
     .filter((r) => filter === "all" || r.status === filter)
     .sort((a, b) => b.estimatedPeakReductionPct - a.estimatedPeakReductionPct);
 
-  const generate = () => {
+  const generate = async () => {
     setGenerating(true);
     setMessage(null);
-    // Short delay so the analysis step is visible; the engine itself runs synchronously.
-    window.setTimeout(() => {
-      const drafts = generateRecommendations(institutions, junctions, recommendations);
-      replaceDraftRecommendations(drafts);
-      setGenerating(false);
+    try {
+      const drafts = await generateRecommendations();
       setFilter("draft");
-      setMessage(
-        drafts.length
+      setMessage({
+        text: drafts.length
           ? `Generated ${drafts.length} recommendation${drafts.length === 1 ? "" : "s"} for review.`
           : "No further shifts found that reduce a junction peak within the institutions' stated flexibility.",
-      );
-    }, 700);
+      });
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : "Could not generate recommendations.", error: true });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const review = async (id: string, decision: "approved" | "rejected") => {
+    setReviewingId(id);
+    setMessage(null);
+    try {
+      await reviewRecommendation(id, decision);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : "Could not save the review.", error: true });
+    } finally {
+      setReviewingId(null);
+    }
   };
 
   return (
@@ -81,7 +95,16 @@ export function RecommendationsPage() {
         </div>
       )}
 
-      {message && <p className="mb-4 rounded-lg bg-primary-soft px-4 py-2 text-sm text-primary">{message}</p>}
+      {message && (
+        <p
+          className={cx(
+            "mb-4 rounded-lg px-4 py-2 text-sm",
+            message.error ? "border border-red-200 bg-red-50 text-red-700" : "bg-primary-soft text-primary",
+          )}
+        >
+          {message.text}
+        </p>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => {
@@ -145,10 +168,10 @@ export function RecommendationsPage() {
                     <Badge tone="green">−{r.estimatedPeakReductionPct}% est. peak</Badge>
                     {r.status === "draft" && (
                       <div className="flex gap-2">
-                        <Button variant="danger" onClick={() => reviewRecommendation(r.id, "rejected")}>
+                        <Button variant="danger" disabled={reviewingId !== null} onClick={() => review(r.id, "rejected")}>
                           <X className="h-4 w-4" /> Reject
                         </Button>
-                        <Button variant="success" onClick={() => reviewRecommendation(r.id, "approved")}>
+                        <Button variant="success" disabled={reviewingId !== null} onClick={() => review(r.id, "approved")}>
                           <Check className="h-4 w-4" /> Approve
                         </Button>
                       </div>

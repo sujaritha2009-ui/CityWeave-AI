@@ -8,11 +8,14 @@ import {
   LayoutDashboard,
   Map,
   Menu,
+  RefreshCw,
   Settings,
   Sparkles,
+  WifiOff,
   X,
 } from "lucide-react";
 import { BrandLogo } from "../components/common/BrandLogo";
+import { Button, Spinner } from "../components/common/ui";
 import { cx } from "../lib/cx";
 import { useStore } from "../data/useStore";
 
@@ -27,9 +30,17 @@ const NAV = [
 ];
 
 export function AppLayout() {
-  const { recommendations } = useStore();
+  const { recommendations, junctions, status, error, reload } = useStore();
   const [open, setOpen] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const drafts = recommendations.filter((r) => r.status === "draft").length;
+  const hasData = junctions.length > 0;
+
+  const retry = async () => {
+    setRetrying(true);
+    await reload();
+    setRetrying(false);
+  };
 
   const sidebar = (
     <nav className="flex flex-col gap-1 p-3">
@@ -64,8 +75,13 @@ export function AppLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <BrandLogo to="/" />
-          <span className="hidden rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 sm:inline">
-            Sample data
+          <span
+            className={cx(
+              "hidden rounded-full px-2.5 py-0.5 text-xs font-semibold sm:inline",
+              status === "error" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700",
+            )}
+          >
+            {status === "error" ? "API offline" : "Sample data · API"}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm font-medium">
@@ -96,7 +112,22 @@ export function AppLayout() {
         )}
 
         <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-          <Outlet />
+          {status === "error" && (
+            <div className="no-print mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <WifiOff className="h-5 w-5 shrink-0" />
+              <span className="flex-1">{error}</span>
+              <Button variant="danger" onClick={retry} disabled={retrying}>
+                {retrying ? <Spinner /> : <RefreshCw className="h-4 w-4" />} Retry
+              </Button>
+            </div>
+          )}
+          {status === "loading" ? (
+            <div className="flex items-center justify-center gap-3 py-24 text-muted">
+              <Spinner /> Loading data from the API…
+            </div>
+          ) : (
+            (status === "ready" || hasData) && <Outlet />
+          )}
         </main>
       </div>
     </div>

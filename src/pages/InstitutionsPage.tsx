@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MapPin, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button, Card, EmptyState, PageHeader } from "../components/common/ui";
-import type { InstitutionType } from "../data/types";
+import type { InstitutionType } from "@shared/types";
 import { useStore } from "../data/useStore";
 import { cx, inputClass } from "../lib/cx";
 import { INSTITUTION_TYPES, INSTITUTION_TYPE_OPTIONS } from "../lib/institutionMeta";
-import { formatTime } from "../lib/time";
+import { formatTime } from "@shared/time";
 
 export function InstitutionsPage() {
   const { institutions, junctions, deleteInstitution } = useStore();
@@ -19,9 +19,15 @@ export function InstitutionsPage() {
     return institutions.filter((i) => (type === "all" || i.type === type) && (!q || i.name.toLowerCase().includes(q)));
   }, [institutions, query, type]);
 
-  const handleDelete = (id: string, name: string) => {
-    if (window.confirm(`Delete ${name}? Its recommendations and approved schedule versions will also be removed.`)) {
-      deleteInstitution(id);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Delete ${name}? Its recommendations and approved schedule versions will also be removed.`)) return;
+    setDeleteError(null);
+    try {
+      await deleteInstitution(id);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : `Could not delete ${name}.`);
     }
   };
 
@@ -38,6 +44,9 @@ export function InstitutionsPage() {
       />
 
       <Card className="p-4">
+        {deleteError && (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{deleteError}</p>
+        )}
         <div className="mb-4 flex flex-wrap gap-3">
           <div className="relative w-full max-w-sm">
             <Search className="absolute top-2.5 left-3 h-4 w-4 text-muted" />

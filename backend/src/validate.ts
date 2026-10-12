@@ -1,6 +1,6 @@
 import { ApiError } from "./errors.js";
-import { toMinutes } from "./time.js";
-import type { AppData, InstitutionInput, InstitutionType, Recommendation } from "./types.js";
+import { toMinutes } from "../../shared/time.js";
+import type { AppData, InstitutionInput, InstitutionType, Recommendation } from "../../shared/types.js";
 
 const INSTITUTION_TYPES: InstitutionType[] = ["college", "school", "hospital", "government", "office"];
 

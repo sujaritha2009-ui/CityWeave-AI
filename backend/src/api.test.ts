@@ -6,7 +6,7 @@ import { after, before, describe, it } from "node:test";
 import type { Server } from "node:http";
 import { createApp } from "./app.js";
 import { createStore } from "./store.js";
-import type { AppData, Institution, Recommendation } from "./types.js";
+import type { AppData, Institution, Recommendation } from "../../shared/types.js";
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cityweave-api-"));
 const dataFile = path.join(dir, "store.json");

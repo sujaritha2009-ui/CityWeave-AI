@@ -3,11 +3,11 @@ import { useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { CityMap } from "../components/map/CityMap";
 import { Card, PageHeader } from "../components/common/ui";
-import type { CongestionLevel } from "../data/types";
+import type { CongestionLevel } from "@shared/types";
 import { useStore } from "../data/useStore";
 import { cx, inputClass } from "../lib/cx";
 import { INSTITUTION_TYPES } from "../lib/institutionMeta";
-import { CONGESTION_STYLES } from "../lib/traffic";
+import { CONGESTION_STYLES } from "../lib/congestion";
 
 const LEVELS: CongestionLevel[] = ["low", "moderate", "high"];
 

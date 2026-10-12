@@ -1,5 +1,5 @@
 import { Building, GraduationCap, Hospital, Landmark, School, type LucideIcon } from "lucide-react";
-import type { InstitutionType } from "../data/types";
+import type { InstitutionType } from "@shared/types";
 
 export const INSTITUTION_TYPES: Record<InstitutionType, { label: string; icon: LucideIcon; color: string; tile: string }> = {
   college: { label: "College", icon: GraduationCap, color: "#1677f8", tile: "bg-primary-soft text-primary" },

@@ -1,16 +1,19 @@
 import { createContext } from "react";
-import type { AppData, Institution, Recommendation } from "./types";
+import type { AppData, Institution, InstitutionInput, Recommendation } from "@shared/types";
 
-export type InstitutionInput = Omit<Institution, "id">;
+export type StoreStatus = "loading" | "ready" | "error";
 
 export interface StoreValue extends AppData {
-  addInstitution: (input: InstitutionInput) => Institution;
-  updateInstitution: (id: string, input: InstitutionInput) => void;
-  deleteInstitution: (id: string) => void;
-  /** Replaces all draft recommendations with a freshly generated set. */
-  replaceDraftRecommendations: (drafts: Recommendation[]) => void;
-  reviewRecommendation: (id: string, decision: "approved" | "rejected") => void;
-  resetSampleData: () => void;
+  status: StoreStatus;
+  error: string | null;
+  reload: () => Promise<void>;
+  addInstitution: (input: InstitutionInput) => Promise<Institution>;
+  updateInstitution: (id: string, input: InstitutionInput) => Promise<Institution>;
+  deleteInstitution: (id: string) => Promise<void>;
+  /** Asks the API to replace all draft recommendations with a freshly generated set. */
+  generateRecommendations: () => Promise<Recommendation[]>;
+  reviewRecommendation: (id: string, decision: "approved" | "rejected") => Promise<void>;
+  resetSampleData: () => Promise<void>;
 }
 
 export const StoreContext = createContext<StoreValue | null>(null);

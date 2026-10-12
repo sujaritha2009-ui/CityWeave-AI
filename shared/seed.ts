@@ -1,5 +1,5 @@
-import { BUCKET_MINUTES, dayBuckets, fromMinutes } from "../lib/time";
-import type { AppData, Institution, Junction, TrafficObservation } from "./types";
+import { BUCKET_MINUTES, dayBuckets, fromMinutes } from "./time.js";
+import type { AppData, Institution, Junction, TrafficObservation } from "./types.js";
 
 export const PILOT_CENTER: [number, number] = [13.0685, 74.9965];
 

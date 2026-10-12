@@ -4,8 +4,9 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { AlertTriangle, ArrowRight, Building2, MapPin, Sparkles } from "lucide-react";
 import { Badge, Card, EmptyState, MetricCard, PageHeader } from "../components/common/ui";
 import { useStore } from "../data/useStore";
-import { formatTime } from "../lib/time";
-import { CONGESTION_STYLES, junctionStats, volumeSeries } from "../lib/traffic";
+import { formatTime } from "@shared/time";
+import { junctionStats, volumeSeries } from "@shared/traffic";
+import { CONGESTION_STYLES } from "../lib/congestion";
 
 export function DashboardPage() {
   const { institutions, junctions, observations, recommendations } = useStore();

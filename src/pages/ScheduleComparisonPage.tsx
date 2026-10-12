@@ -4,8 +4,8 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 import { Card, EmptyState, EstimateNotice, MetricCard, PageHeader } from "../components/common/ui";
 import { useStore } from "../data/useStore";
 import { cx, inputClass } from "../lib/cx";
-import { buildProfile, peakOf, proposedShifts } from "../lib/recommendationEngine";
-import { DAY_END, DAY_START, dayBuckets, formatTime, fromMinutes, shiftTime, toMinutes } from "../lib/time";
+import { buildProfile, peakOf, proposedShifts } from "@shared/recommendationEngine";
+import { DAY_END, DAY_START, dayBuckets, formatTime, fromMinutes, shiftTime, toMinutes } from "@shared/time";
 
 const AXIS_START = 7 * 60;
 const AXIS_END = 19 * 60;
