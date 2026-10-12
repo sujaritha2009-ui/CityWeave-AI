@@ -128,9 +128,28 @@ function parseDraft(item: unknown, index: number, data: AppData, keptIds: Set<st
   };
 }
 
-export function parseDecision(body: unknown): "approved" | "rejected" {
-  if (!isRecord(body) || (body.decision !== "approved" && body.decision !== "rejected")) {
-    throw new ApiError(400, 'Decision must be "approved" or "rejected".');
+export interface ReviewDecision {
+  decision: "approved" | "rejected" | "modified";
+  shiftMinutes?: number;
+  notes?: string;
+}
+
+export function parseDecision(body: unknown): ReviewDecision {
+  if (
+    !isRecord(body) ||
+    (body.decision !== "approved" && body.decision !== "rejected" && body.decision !== "modified")
+  ) {
+    throw new ApiError(400, 'Decision must be "approved", "rejected", or "modified".');
   }
-  return body.decision;
+
+  let shiftMinutes: number | undefined;
+  if (body.decision === "modified") {
+    if (typeof body.shiftMinutes !== "number" || !Number.isFinite(body.shiftMinutes)) {
+      throw new ApiError(400, 'A "modified" decision requires a numerical shiftMinutes.');
+    }
+    shiftMinutes = body.shiftMinutes;
+  }
+
+  const notes = typeof body.notes === "string" ? body.notes.trim() : undefined;
+  return { decision: body.decision, shiftMinutes, notes };
 }

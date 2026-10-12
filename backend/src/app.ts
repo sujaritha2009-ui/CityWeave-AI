@@ -4,6 +4,7 @@ import { approvedShifts, findKeyInsight, MODEL_ASSUMPTIONS, proposedShifts } fro
 import { toMinutes } from "../../shared/time.js";
 import { peakReductionPct, REPORT_RANGES, type ReportRange, junctionStats, volumeSeries } from "../../shared/traffic.js";
 import { ApiError } from "./errors.js";
+import { askCivicAssistant } from "./gemini.js";
 import type { DataStore } from "./store.js";
 import { parseDecision } from "./validate.js";
 
@@ -18,6 +19,14 @@ export function createApp(store: DataStore): Express {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
+  });
+
+  app.get("/api/config/maps-key", (_req, res) => {
+    const key =
+      process.env.GOOGLE_MAPS_API_KEY ||
+      process.env.VITE_GOOGLE_MAPS_API_KEY ||
+      "";
+    res.json({ googleMapsApiKey: key });
   });
 
   app.get("/api/data", (_req, res) => {
@@ -85,8 +94,25 @@ export function createApp(store: DataStore): Express {
     res.json(status ? recommendations.filter((r) => r.status === status) : recommendations);
   });
 
-  app.post("/api/recommendations/generate", (_req, res) => {
-    res.json(store.generateDrafts());
+  app.post("/api/recommendations/generate", async (_req, res, next) => {
+    try {
+      const drafts = await store.generateDrafts();
+      res.json(drafts);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post("/api/ai/ask", async (req, res, next) => {
+    try {
+      const question = typeof req.body?.question === "string" ? req.body.question.trim() : "";
+      if (!question) throw new ApiError(400, "Question is required.");
+      const data = store.getData();
+      const answer = await askCivicAssistant(question, data.institutions, data.junctions);
+      res.json(answer);
+    } catch (err) {
+      next(err);
+    }
   });
 
   app.put("/api/recommendations/drafts", (req, res) => {

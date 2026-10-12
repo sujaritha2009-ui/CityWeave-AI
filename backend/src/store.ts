@@ -3,15 +3,22 @@ import path from "node:path";
 import { newId } from "../../shared/id.js";
 import { generateRecommendations } from "../../shared/recommendationEngine.js";
 import { createSeedData } from "../../shared/seed.js";
-import { shiftTime } from "../../shared/time.js";
+import { shiftTime, toMinutes, formatTime } from "../../shared/time.js";
 import type { AppData, Institution, Recommendation, ScheduleVersion } from "../../shared/types.js";
 import { ApiError } from "./errors.js";
-import { parseDrafts, parseInstitutionInput } from "./validate.js";
+import { explainRecommendationWithGemini } from "./gemini.js";
+import { parseDrafts, parseInstitutionInput, type ReviewDecision } from "./validate.js";
 
 function isAppData(value: unknown): value is AppData {
   if (typeof value !== "object" || value === null) return false;
   const data = value as AppData;
-  return Array.isArray(data.institutions) && Array.isArray(data.junctions) && Array.isArray(data.observations) && Array.isArray(data.recommendations) && Array.isArray(data.scheduleVersions);
+  return (
+    Array.isArray(data.institutions) &&
+    Array.isArray(data.junctions) &&
+    Array.isArray(data.observations) &&
+    Array.isArray(data.recommendations) &&
+    Array.isArray(data.scheduleVersions)
+  );
 }
 
 function readFile(filePath: string): AppData {
@@ -43,8 +50,8 @@ export interface DataStore {
   updateInstitution: (id: string, body: unknown) => Institution;
   deleteInstitution: (id: string) => void;
   replaceDraftRecommendations: (body: unknown) => Recommendation[];
-  generateDrafts: () => Recommendation[];
-  reviewRecommendation: (id: string, decision: "approved" | "rejected") => ReviewResult;
+  generateDrafts: (apiKeyOverride?: string) => Promise<Recommendation[]>;
+  reviewRecommendation: (id: string, decision: ReviewDecision) => ReviewResult;
   resetSampleData: () => AppData;
 }
 
@@ -101,29 +108,83 @@ export function createStore(filePath: string): DataStore {
       return next.recommendations;
     },
 
-    generateDrafts() {
-      const drafts = generateRecommendations(data.institutions, data.junctions, data.recommendations);
+    async generateDrafts(apiKeyOverride) {
+      const rawDrafts = generateRecommendations(data.institutions, data.junctions, data.recommendations);
+
+      const draftsWithExplanations: Recommendation[] = await Promise.all(
+        rawDrafts.map(async (draft) => {
+          const institution = data.institutions.find((i) => i.id === draft.institutionId);
+          const junction = data.junctions.find((j) => j.id === draft.junctionId);
+          if (!institution || !junction) return draft;
+
+          const peers = data.institutions.filter(
+            (i) =>
+              i.junctionId === junction.id &&
+              i.id !== institution.id &&
+              Math.abs(toMinutes(i.startTime) - toMinutes(institution.startTime)) <= 30,
+          );
+
+          const aiExplanation = await explainRecommendationWithGemini({
+            recommendation: draft,
+            institution,
+            junction,
+            peers,
+            peakWindow: `${formatTime(draft.originalStart)} – ${formatTime(shiftTime(draft.originalStart, 30))}`,
+            apiKeyOverride,
+          });
+
+          return {
+            ...draft,
+            aiExplanation,
+            rationale: aiExplanation.summary || draft.rationale,
+          };
+        }),
+      );
+
       const next = commit({
         ...data,
-        recommendations: [...data.recommendations.filter((r) => r.status !== "draft"), ...drafts],
+        recommendations: [...data.recommendations.filter((r) => r.status !== "draft"), ...draftsWithExplanations],
       });
       return next.recommendations.filter((r) => r.status === "draft");
     },
 
-    reviewRecommendation(id, decision) {
+    reviewRecommendation(id, decisionInput) {
       const rec = data.recommendations.find((r) => r.id === id);
       if (!rec) throw new ApiError(404, "Recommendation not found");
       if (rec.status !== "draft") throw new ApiError(409, "Only draft recommendations can be reviewed.");
 
       const now = new Date().toISOString();
-      const recommendation: Recommendation = { ...rec, status: decision, reviewedAt: now };
-      const recommendations = data.recommendations.map((r) => (r.id === id ? recommendation : r));
-      if (decision === "rejected") {
+      const institution = data.institutions.find((i) => i.id === rec.institutionId);
+
+      if (decisionInput.decision === "rejected") {
+        const recommendation: Recommendation = {
+          ...rec,
+          status: "rejected",
+          reviewedAt: now,
+          coordinatorNotes: decisionInput.notes,
+        };
+        const recommendations = data.recommendations.map((r) => (r.id === id ? recommendation : r));
         commit({ ...data, recommendations });
         return { recommendation };
       }
 
-      const institution = data.institutions.find((i) => i.id === rec.institutionId);
+      const shift = decisionInput.decision === "modified" && decisionInput.shiftMinutes !== undefined
+        ? decisionInput.shiftMinutes
+        : rec.shiftMinutes;
+
+      const proposedStart = shiftTime(rec.originalStart, shift);
+
+      const recommendation: Recommendation = {
+        ...rec,
+        status: decisionInput.decision,
+        shiftMinutes: shift,
+        proposedStart,
+        reviewedAt: now,
+        coordinatorNotes: decisionInput.notes,
+      };
+
+      const recommendations = data.recommendations.map((r) => (r.id === id ? recommendation : r));
+
       if (!institution) {
         commit({ ...data, recommendations });
         return { recommendation };
@@ -132,16 +193,18 @@ export function createStore(filePath: string): DataStore {
       const scheduleVersion: ScheduleVersion = {
         id: newId("v"),
         institutionId: institution.id,
-        startTime: rec.proposedStart,
-        endTime: shiftTime(institution.endTime, rec.shiftMinutes),
+        startTime: proposedStart,
+        endTime: shiftTime(institution.endTime, shift),
         recommendationId: rec.id,
         createdAt: now,
       };
+
       commit({
         ...data,
         recommendations,
         scheduleVersions: [...data.scheduleVersions, scheduleVersion],
       });
+
       return { recommendation, scheduleVersion };
     },
 

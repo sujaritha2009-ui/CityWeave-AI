@@ -64,8 +64,9 @@ export function Badge({ tone = "gray", className, children }: { tone?: keyof typ
   );
 }
 
-export function StatusBadge({ status }: { status: "draft" | "approved" | "rejected" }) {
+export function StatusBadge({ status }: { status: "draft" | "approved" | "modified" | "rejected" }) {
   if (status === "approved") return <Badge tone="green">Approved</Badge>;
+  if (status === "modified") return <Badge tone="blue">Modified &amp; Adopted</Badge>;
   if (status === "rejected") return <Badge tone="red">Rejected</Badge>;
   return <Badge tone="amber">Awaiting review</Badge>;
 }

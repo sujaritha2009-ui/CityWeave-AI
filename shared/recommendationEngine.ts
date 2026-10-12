@@ -56,7 +56,7 @@ export function bucketRangeLabel(index: number): string {
 /** Shifts from approved recommendations, used as the fixed starting point. */
 export function approvedShifts(recommendations: Recommendation[]): ShiftMap {
   const shifts: ShiftMap = {};
-  for (const r of recommendations) if (r.status === "approved") shifts[r.institutionId] = r.shiftMinutes;
+  for (const r of recommendations) if (r.status === "approved" || r.status === "modified") shifts[r.institutionId] = r.shiftMinutes;
   return shifts;
 }
 

@@ -3,6 +3,11 @@ import type { AppData, Institution, InstitutionInput, Recommendation } from "@sh
 
 export type StoreStatus = "loading" | "ready" | "error";
 
+export interface ReviewOptions {
+  shiftMinutes?: number;
+  notes?: string;
+}
+
 export interface StoreValue extends AppData {
   status: StoreStatus;
   error: string | null;
@@ -12,7 +17,12 @@ export interface StoreValue extends AppData {
   deleteInstitution: (id: string) => Promise<void>;
   /** Asks the API to replace all draft recommendations with a freshly generated set. */
   generateRecommendations: () => Promise<Recommendation[]>;
-  reviewRecommendation: (id: string, decision: "approved" | "rejected") => Promise<void>;
+  reviewRecommendation: (
+    id: string,
+    decision: "approved" | "rejected" | "modified",
+    options?: ReviewOptions,
+  ) => Promise<void>;
+  askCivicAssistant: (question: string) => Promise<{ answer: string; source: "gemini" | "rule-based" }>;
   resetSampleData: () => Promise<void>;
 }
 

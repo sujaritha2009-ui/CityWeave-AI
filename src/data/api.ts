@@ -12,11 +12,16 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (init?.body !== undefined) {
+    headers["content-type"] = "application/json";
+  }
+
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       method: init?.method ?? "GET",
-      headers: init?.body !== undefined ? { "content-type": "application/json" } : undefined,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     });
   } catch {

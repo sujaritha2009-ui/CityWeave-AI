@@ -40,7 +40,15 @@ export interface TrafficObservation {
   source: DataSource;
 }
 
-export type RecommendationStatus = "draft" | "approved" | "rejected";
+export type RecommendationStatus = "draft" | "approved" | "modified" | "rejected";
+
+export interface AIExplanation {
+  summary: string;
+  reasoning: string;
+  supportingObservations: string[];
+  assumptions: string[];
+  source: "gemini" | "rule-based";
+}
 
 export interface Recommendation {
   id: string;
@@ -52,9 +60,11 @@ export interface Recommendation {
   /** Estimated reduction of the junction's peak 15-minute arrivals, in percent. */
   estimatedPeakReductionPct: number;
   rationale: string;
+  aiExplanation?: AIExplanation;
   status: RecommendationStatus;
   createdAt: string;
   reviewedAt?: string;
+  coordinatorNotes?: string;
 }
 
 export interface ScheduleVersion {

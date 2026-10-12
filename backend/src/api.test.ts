@@ -8,6 +8,16 @@ import { createApp } from "./app.js";
 import { createStore } from "./store.js";
 import type { AppData, Institution, Recommendation } from "../../shared/types.js";
 
+try {
+  process.loadEnvFile?.();
+} catch {}
+try {
+  process.loadEnvFile?.(path.resolve(process.cwd(), ".env"));
+} catch {}
+try {
+  process.loadEnvFile?.(path.resolve(process.cwd(), "../.env"));
+} catch {}
+
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cityweave-api-"));
 const dataFile = path.join(dir, "store.json");
 const store = createStore(dataFile);
@@ -109,6 +119,17 @@ describe("CityWeave API", { concurrency: 1 }, () => {
     const drafts = generated.body as Recommendation[];
     assert.ok(drafts.length >= 2);
     assert.ok(drafts.every((r) => r.status === "draft"));
+    assert.ok(drafts.every((r) => r.aiExplanation !== undefined));
+    assert.ok(drafts[0].aiExplanation?.summary.length! > 0);
+    assert.ok(drafts[0].aiExplanation?.supportingObservations.length! > 0);
+    assert.ok(drafts[0].aiExplanation?.assumptions.length! > 0);
+
+    const ask = await api("/api/ai/ask", {
+      method: "POST",
+      body: JSON.stringify({ question: "Why is Bus Stand Junction congested?" }),
+    });
+    assert.equal(ask.status, 200);
+    assert.ok((ask.body as { answer: string }).answer.length > 0);
 
     const insight = await api("/api/insights");
     assert.equal(insight.status, 200);
@@ -126,6 +147,19 @@ describe("CityWeave API", { concurrency: 1 }, () => {
     assert.equal(review.recommendation.status, "approved");
     assert.equal(review.scheduleVersion.startTime, drafts[0].proposedStart);
     assert.equal(review.scheduleVersion.institutionId, drafts[0].institutionId);
+
+    // Test coordinator modified review
+    if (drafts.length >= 2) {
+      const modified = await api(`/api/recommendations/${drafts[1].id}/review`, {
+        method: "POST",
+        body: JSON.stringify({ decision: "modified", shiftMinutes: 15, notes: "Adjusted by coordinator" }),
+      });
+      assert.equal(modified.status, 200);
+      const modRec = (modified.body as { recommendation: Recommendation }).recommendation;
+      assert.equal(modRec.status, "modified");
+      assert.equal(modRec.shiftMinutes, 15);
+      assert.equal(modRec.coordinatorNotes, "Adjusted by coordinator");
+    }
 
     const again = await api(`/api/recommendations/${drafts[0].id}/review`, {
       method: "POST",
@@ -149,8 +183,9 @@ describe("CityWeave API", { concurrency: 1 }, () => {
     assert.ok(series.length > 0);
 
     const reloaded = createStore(dataFile).getData();
-    assert.equal(reloaded.scheduleVersions.length, 1);
+    assert.equal(reloaded.scheduleVersions.length, 2);
     assert.equal(reloaded.recommendations.some((r) => r.status === "approved"), true);
+    assert.equal(reloaded.recommendations.some((r) => r.status === "modified"), true);
   });
 
   it("resets back to the Moodbidri sample", async () => {

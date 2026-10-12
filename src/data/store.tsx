@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AppData, Institution, InstitutionInput, Recommendation } from "@shared/types";
 import { api } from "./api";
-import { StoreContext, type StoreStatus, type StoreValue } from "./storeContext";
+import { StoreContext, type ReviewOptions, type StoreStatus, type StoreValue } from "./storeContext";
 
 const EMPTY: AppData = { institutions: [], junctions: [], observations: [], recommendations: [], scheduleVersions: [] };
 
@@ -58,12 +58,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [reload]);
 
   const reviewRecommendation = useCallback(
-    async (id: string, decision: "approved" | "rejected") => {
-      await api(`/recommendations/${encodeURIComponent(id)}/review`, { method: "POST", body: { decision } });
+    async (id: string, decision: "approved" | "rejected" | "modified", options?: ReviewOptions) => {
+      await api(`/recommendations/${encodeURIComponent(id)}/review`, {
+        method: "POST",
+        body: {
+          decision,
+          shiftMinutes: options?.shiftMinutes,
+          notes: options?.notes,
+        },
+      });
       await reload();
     },
     [reload],
   );
+
+  const askCivicAssistant = useCallback(async (question: string) => {
+    return api<{ answer: string; source: "gemini" | "rule-based" }>("/ai/ask", {
+      method: "POST",
+      body: { question },
+    });
+  }, []);
 
   const resetSampleData = useCallback(async () => {
     setData(await api<AppData>("/data/reset", { method: "POST" }));
@@ -82,9 +96,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteInstitution,
       generateRecommendations,
       reviewRecommendation,
+      askCivicAssistant,
       resetSampleData,
     }),
-    [data, status, error, reload, addInstitution, updateInstitution, deleteInstitution, generateRecommendations, reviewRecommendation, resetSampleData],
+    [
+      data,
+      status,
+      error,
+      reload,
+      addInstitution,
+      updateInstitution,
+      deleteInstitution,
+      generateRecommendations,
+      reviewRecommendation,
+      askCivicAssistant,
+      resetSampleData,
+    ],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
