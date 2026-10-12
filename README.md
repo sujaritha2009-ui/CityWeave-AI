@@ -6,8 +6,8 @@ at the same time.
 
 Google AI Builder Cup prototype · Pilot area: Moodbidri, Karnataka.
 
-> **Prototype status:** this is a frontend-only MVP. All institutions, junctions and traffic counts are
-> **sample data** stored in your browser's `localStorage`. Recommendations come from a transparent,
+> **Prototype status:** all institutions, junctions and traffic counts are **sample data** served by a small
+> Express API and saved to `backend/data/store.json`. Recommendations come from a transparent,
 > deterministic arrival model, not from measured traffic outcomes.
 
 ## Run locally
@@ -19,20 +19,47 @@ npm install
 npm run dev
 ```
 
-Open the URL printed by Vite (default http://localhost:5173).
+`npm install` also installs the backend's dependencies, and `npm run dev` starts both the web app
+(Vite, http://localhost:5173) and the API (http://localhost:4000). Vite proxies `/api` to the API, so open
+http://localhost:5173. If the API is not running, the app shows an "API offline" banner with a Retry button.
 
 Other scripts:
 
-| Command           | Purpose                          |
-| ----------------- | -------------------------------- |
-| `npm run build`   | Type-check and production build  |
-| `npm run lint`    | ESLint                           |
-| `npm run preview` | Serve the production build       |
+| Command             | Purpose                                   |
+| ------------------- | ----------------------------------------- |
+| `npm run dev:web`   | Web app only                              |
+| `npm run dev:api`   | API only (auto-reloads)                   |
+| `npm run build`     | Type-check and production build (web)     |
+| `npm run build:api` | Compile the API to `backend/dist`         |
+| `npm run start:api` | Run the compiled API                      |
+| `npm test`          | API tests                                 |
+| `npm run lint`      | ESLint                                    |
+| `npm run preview`   | Serve the production web build            |
+
+Set `VITE_API_URL` to point the web app at an API on another host. The API honours `PORT` (default 4000)
+and `DATA_FILE` (default `backend/data/store.json`).
+
+## API
+
+| Method & path                          | Purpose                                   |
+| -------------------------------------- | ----------------------------------------- |
+| `GET /api/health`                      | Health check                              |
+| `GET /api/data`                        | Everything the web app needs in one call  |
+| `POST /api/data/reset`                 | Restore the Moodbidri sample data         |
+| `GET/POST /api/institutions`           | List / add institutions (validated)       |
+| `GET/PUT/DELETE /api/institutions/:id` | Read / update / delete an institution     |
+| `GET /api/junctions`, `/:id`, `/:id/stats` | Junctions and their traffic stats     |
+| `GET /api/observations`                | Sample traffic counts                     |
+| `GET /api/recommendations`             | Recommendations                           |
+| `POST /api/recommendations/generate`   | Run the engine and replace drafts         |
+| `POST /api/recommendations/:id/review` | Approve or reject a draft                 |
+| `GET /api/schedule-versions`           | Approved schedule history                 |
+| `GET /api/insights`, `/api/volume`, `/api/model` | Key insight, volume chart, model assumptions |
 
 ## Tech stack
 
 React 18 · TypeScript · Vite · Tailwind CSS v4 · React Router · Leaflet + OpenStreetMap (react-leaflet) ·
-Recharts · lucide-react icons.
+Recharts · lucide-react icons · Express API (Node.js, TypeScript).
 
 ## Pages
 
@@ -51,7 +78,7 @@ Recharts · lucide-react icons.
 
 ## How recommendations work
 
-`src/lib/recommendationEngine.ts`:
+`shared/recommendationEngine.ts` (used by the API; the web app imports the same file for charts):
 
 1. Each institution's daily arrivals are spread over the 45 minutes before its start time (and departures
    over the 45 minutes after its end time) in 15-minute buckets.
@@ -68,19 +95,30 @@ Reports page lists every model assumption.
 ## Project structure
 
 ```
+shared/                   types, Moodbidri sample data, recommendation engine, traffic stats, time helpers
+                          (one copy, imported by both the web app as `@shared/...` and the API)
+backend/
+  src/                    Express app, validation, JSON file store, tests
+  data/store.json         saved data (created on first run, not committed)
 src/
   App.tsx                 routes
-  data/                   types, Moodbidri sample data, localStorage store
-  lib/                    recommendation engine, traffic stats, time helpers
+  data/                   API client and the store that loads/saves through it
+  lib/                    UI helpers
   layouts/                public layout and app shell (sidebar + header)
   components/common/      Card, Button, badges, MetricCard, EmptyState, EstimateNotice
   components/map/         CityMap and LocationPicker (Leaflet)
   pages/                  one file per page
 ```
 
+## Commit messages
+
+`npm install` sets `core.hooksPath` to `.githooks`. Its `commit-msg` hook removes editor-added
+`Co-authored-by: Cursor` trailers, and a GitHub Actions check (`.github/workflows/commit-check.yml`) fails
+any push that still contains one.
+
 ## Future work
 
-- **Firestore** persistence: replace `src/data/store.tsx` with Firestore reads and writes (the page components only use `useStore()`).
+- **Firestore** persistence: swap the JSON file store in `backend/src/store.ts` for Firestore (the web app only talks to the API).
 - **Gemini** explanation endpoint: a secure server-side function that turns engine output into richer explanations (the API key must never be in the frontend).
 - **Google Routes API**: traffic-aware journey-time estimates for affected corridors.
 - **Firebase Authentication**: role-based access so only an institution's coordinator can approve its changes.
