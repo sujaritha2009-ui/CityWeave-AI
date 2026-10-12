@@ -1,0 +1,20 @@
+name: Commit message check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  no-agent-coauthor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject Cursor co-author trailers
+        run: |
+          if git log --format='%h %s%n%b' | grep -iE '^[[:space:]]*co-authored-by:.*(cursor|cursoragent@cursor\.com)'; then
+            echo "::error::A commit contains a 'Co-authored-by: Cursor' line. Run 'npm install' to enable the commit hook, then reword the commit before pushing."
+            exit 1
+          fi
+          echo "No agent co-author trailers found."

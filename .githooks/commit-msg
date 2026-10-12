@@ -1,0 +1,10 @@
+#!/bin/sh
+# Strips editor/agent co-author trailers (e.g. "Co-authored-by: Cursor <cursoragent@cursor.com>")
+# so they never reach the shared history. Enabled by `npm install` via scripts/setup-git-hooks.mjs.
+
+msg_file="$1"
+tmp_file="$msg_file.cw-tmp"
+
+grep -viE '^[[:space:]]*co-authored-by:.*(cursor|cursoragent@cursor\.com)' "$msg_file" > "$tmp_file" || true
+git stripspace < "$tmp_file" > "$msg_file"
+rm -f "$tmp_file"
